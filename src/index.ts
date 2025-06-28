@@ -9,7 +9,7 @@ async function toFileName(site: string): Promise<string> {
 		.join('');
 }
 
-function createResponse(objectName: string, created: boolean) {
+function createResponse(objectName: string, created: boolean, corsOrigin: string = '*'): Response {
 	return new Response(
 		JSON.stringify({
 			// r2 object name
@@ -20,13 +20,16 @@ function createResponse(objectName: string, created: boolean) {
 		{
 			headers: {
 				'Content-Type': 'application/json',
+				'Cache-Control': 'public, max-age=3600',
+				'Access-Control-Allow-Origin': corsOrigin,
+				'Access-Control-Allow-Methods': 'GET, OPTIONS',
 			},
 		}
 	);
 }
 
 export default {
-	async fetch(request, env, ctx): Promise<Response> {
+	async fetch(request, env): Promise<Response> {
 		const { searchParams } = new URL(request.url);
 		let site = searchParams.get('site');
 		const fullPage = searchParams.get('fullPage') === 'true';
@@ -45,7 +48,7 @@ export default {
 		// check if the file already exists in R2
 		const existingFile = await env.R2_STORE_BUCKET.head(objectName);
 		if (existingFile) {
-			return createResponse(objectName, false);
+			return createResponse(objectName, false, env.CORS_ORIGIN);
 		}
 
 		// get the env values from the environment
@@ -95,6 +98,6 @@ export default {
 		await browser.close();
 		await env.R2_STORE_BUCKET.put(objectName, screenshot);
 
-		return createResponse(objectName, true)
+		return createResponse(objectName, true, env.CORS_ORIGIN)
 	},
 } satisfies ExportedHandler<Env>;
