@@ -28,6 +28,6 @@
 		// Unless you have a specific user agent string to use, you can leave this as is.
 		// This user agent is used to mimic a real browser request.
 		"BROWSER_USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
-		"CORS_ORIGIN": "https://example.com"
+		"CORS_ORIGIN": "*"
 	}
 }
