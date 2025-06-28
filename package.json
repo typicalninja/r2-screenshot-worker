@@ -2,6 +2,7 @@
 	"name": "website-screenshot",
 	"version": "0.0.0",
 	"private": true,
+	"author": "typicalninja",
 	"scripts": {
 		"deploy": "wrangler deploy",
 		"dev": "wrangler dev",
@@ -10,6 +11,7 @@
 		"cf-typegen": "wrangler types"
 	},
 	"devDependencies": {
+		"@cloudflare/puppeteer": "^1.0.3",
 		"@cloudflare/vitest-pool-workers": "^0.8.19",
 		"typescript": "^5.5.2",
 		"vitest": "~3.2.0",
