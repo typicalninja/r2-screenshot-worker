@@ -30,6 +30,11 @@ function createResponse(objectName: string, created: boolean, corsOrigin: string
 
 export default {
 	async fetch(request, env): Promise<Response> {
+		// validate request method
+		if(request.method !== "GET") {
+			return new Response("Unsupported Method", { status: 405 });
+		}
+
 		const { searchParams } = new URL(request.url);
 		let site = searchParams.get('site');
 		const fullPage = searchParams.get('fullPage') === 'true';
