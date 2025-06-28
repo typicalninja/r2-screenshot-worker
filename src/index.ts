@@ -52,10 +52,10 @@ export default {
 		}
 
 		// get the env values from the environment
-		const decryptionKey = env.DECRYPTION_KEY;
+		const secret = env.SECRET_KEY;
 
-		// if decryption key is provided, all requests must be signed
-		if (decryptionKey) {
+		// if secret key is provided, all requests must be signed
+		if (secret) {
 			if (!signature || !expireAt) {
 				return new Response("signature and expireAt parameters are required", { status: 400 });
 			}
@@ -72,7 +72,7 @@ export default {
 			searchParamsCopy.set('site', decodeURIComponent(site));
 
 			const signatureData = searchParamsCopy.toString();
-			const isValidSignature = await verifySignature(signatureData, signature, decryptionKey);
+			const isValidSignature = await verifySignature(signatureData, signature, secret);
 			if (!isValidSignature) {
 				return new Response("Invalid signature", { status: 403 });
 			}

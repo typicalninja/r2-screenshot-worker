@@ -11,12 +11,12 @@ export async function verifySignature(
 	data: string,
 	// the signature to verify against
 	signature: string,
-	// the decryption key used to sign the data
-	decryptionKey: string
+	// the secret key used to sign the data
+	secretKey: string
 ) {
 	const decodedSignature = base64urlDecode(signature);
 	const encoder = new TextEncoder();
-	const key = encoder.encode(decryptionKey);
+	const key = encoder.encode(secretKey);
 	const dataBuffer = encoder.encode(data);
 
 	const keyBuffer = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
