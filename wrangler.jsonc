@@ -7,16 +7,27 @@
 	"name": "website-screenshot",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-06-28",
+	"compatibility_flags": ["nodejs_compat"],
 	"observability": {
 		"enabled": true
 	},
 	"r2_buckets": [
 		{
 			"binding": "R2_STORE_BUCKET",
-			"bucket_name": "website-screenshot-bucket"
+			"bucket_name": "website-screenshot-bucket",
+			"preview_bucket_name": "website-screenshot-bucket-preview"
 		}
 	],
+	"browser": {
+		"binding": "BROWSER"
+	},
 	"vars": {
-		"DECRYPTION_KEY": "your_decryption_key_here"
+		// MAKE SURE TO CHANGE THE DECRYPTION_KEY TO A STRONG KEY
+		// This key is used to verify requests and should be kept secret.
+		"DECRYPTION_KEY": "your_decryption_key_here",
+		// Unless you have a specific user agent string to use, you can leave this as is.
+		// This user agent is used to mimic a real browser request.
+		"BROWSER_USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+		"CORS_ORIGIN": "https://example.com"
 	}
 }
