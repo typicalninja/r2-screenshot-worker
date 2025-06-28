@@ -13,6 +13,7 @@
 	"devDependencies": {
 		"@cloudflare/puppeteer": "^1.0.3",
 		"@cloudflare/vitest-pool-workers": "^0.8.19",
+		"@types/node": "^24.0.7",
 		"typescript": "^5.5.2",
 		"vitest": "~3.2.0",
 		"wrangler": "^4.22.0"
