@@ -9,52 +9,63 @@ async function toFileName(site: string): Promise<string> {
 		.join('');
 }
 
-function createResponse(objectName: string, created: boolean, corsOrigin: string = '*'): Response {
-	return new Response(
-		JSON.stringify({
-			// r2 object name
-			objectName,
-			// wether r2 already has the image for this url
-			created,
-		}),
-		{
-			headers: {
-				'Content-Type': 'application/json',
-				'Cache-Control': 'public, max-age=3600',
-				'Access-Control-Allow-Origin': corsOrigin,
-				'Access-Control-Allow-Methods': 'GET, OPTIONS',
-			},
-		}
-	);
+const CONTENT_TYPE_JSON = 'application/json';
+const CACHE_CONTROL = 'public, max-age=3600';
+const DEFAULT_CORS = '*';
+
+function respondWithJson(data: Record<string, unknown>, status = 200, corsOrigin: string = DEFAULT_CORS): Response {
+	return new Response(JSON.stringify(data), {
+		status,
+		headers: {
+			'Content-Type': CONTENT_TYPE_JSON,
+			'Cache-Control': CACHE_CONTROL,
+			'Access-Control-Allow-Origin': corsOrigin,
+			'Access-Control-Allow-Methods': 'GET, OPTIONS',
+		},
+	});
 }
 
 export default {
 	async fetch(request, env): Promise<Response> {
 		// validate request method
-		if(request.method !== "GET") {
-			return new Response("Unsupported Method", { status: 405 });
+		if (request.method !== 'GET') {
+			return respondWithJson(
+				{
+					error: 'Unsupported method.',
+				},
+				405,
+				env.CORS_ORIGIN
+			);
 		}
 
 		const { searchParams } = new URL(request.url);
-		let site = searchParams.get('site');
-		const fullPage = searchParams.get('fullPage') === 'true';
-		// used for tamper detection
-		const signature = searchParams.get('sig');
-		const expireAt = searchParams.get('expireAt');
+		// UrlEncoded site URL
+		let rawSiteUrl = searchParams.get('site');
 
-		if (!site) {
-			return new Response("Site is a require parameter", { status: 400 });
+		if (!rawSiteUrl) {
+			return respondWithJson({ error: '"site" parameter is required (?site=<>)' }, 400);
 		}
 
-		const fileNameHex = await toFileName(site);
-		// object name = r2 object key
+		const fileNameHex = await toFileName(rawSiteUrl);
 		const objectName = `screenshots/${fileNameHex}.webp`;
 
 		// check if the file already exists in R2
 		const existingFile = await env.R2_STORE_BUCKET.head(objectName);
 		if (existingFile) {
-			return createResponse(objectName, false, env.CORS_ORIGIN);
+			return respondWithJson(
+				{
+					objectName,
+					created: false,
+				},
+				200,
+				env.CORS_ORIGIN
+			);
 		}
+
+		const fullPage = searchParams.get('fullPage') === 'true';
+		// used for tamper detection
+		const signature = searchParams.get('sig');
+		const expireAt = searchParams.get('expireAt');
 
 		// get the env values from the environment
 		const secret = env.SECRET_KEY;
@@ -62,33 +73,41 @@ export default {
 		// if secret key is provided, all requests must be signed
 		if (secret) {
 			if (!signature || !expireAt) {
-				return new Response("signature and expireAt parameters are required", { status: 400 });
+				return respondWithJson({
+					error: "`sig` and `expireAt` parameters are required (?sig=<>&expireAt=<timestamp>)",
+				}, 400, env.CORS_ORIGIN);
 			}
 
 			// check if the timestamp is valid
 			const expireAtTimestamp = parseInt(expireAt, 10);
 			if (isNaN(expireAtTimestamp) || expireAtTimestamp < Date.now()) {
-				return new Response("expireAt parameter is invalid or expired", { status: 400 });
+				return respondWithJson({
+					error: 'Invalid or expired timestamp in "expireAt" parameter.',
+				}, 400, env.CORS_ORIGIN);
 			}
+
 			// verify the signature
 			const searchParamsCopy = new URLSearchParams(searchParams);
 			// remove the signature parameter from the search params
 			searchParamsCopy.delete('sig');
-			searchParamsCopy.set('site', decodeURIComponent(site));
+			// decode the rawSiteUrl to ensure it is in the correct format
+			searchParamsCopy.set('site', decodeURIComponent(rawSiteUrl));
 
 			const signatureData = searchParamsCopy.toString();
 			const isValidSignature = await verifySignature(signatureData, signature, secret);
 			if (!isValidSignature) {
-				return new Response("Invalid signature", { status: 403 });
+				return respondWithJson({
+					error: 'Invalid signature.',
+				}, 403, env.CORS_ORIGIN);
 			}
 		}
 
-		const siteUrl = new URL(site);
+		const siteUrl = new URL(rawSiteUrl);
 
 		const browser = await puppeteer.launch(env.BROWSER);
 		const page = await browser.newPage();
 
-		if(env.BROWSER_USER_AGENT) {
+		if (env.BROWSER_USER_AGENT) {
 			await page.setUserAgent(env.BROWSER_USER_AGENT);
 		}
 
@@ -97,12 +116,14 @@ export default {
 		const screenshot = await page.screenshot({
 			// best for web resources
 			type: 'webp',
-			optimizeForSpeed: true,
 		});
 
 		await browser.close();
 		await env.R2_STORE_BUCKET.put(objectName, screenshot);
 
-		return createResponse(objectName, true, env.CORS_ORIGIN)
+		return respondWithJson({
+			objectName,
+			created: true,
+		}, 200, env.CORS_ORIGIN);
 	},
 } satisfies ExportedHandler<Env>;
