@@ -43,7 +43,7 @@ export default {
 		let rawSiteUrl = searchParams.get('site');
 
 		if (!rawSiteUrl) {
-			return respondWithJson({ error: '"site" parameter is required (?site=<>)' }, 400);
+			return respondWithJson({ error: '`site` parameter is required (?site=[ ])' }, 400);
 		}
 
 		const fileNameHex = await toFileName(rawSiteUrl);
@@ -74,7 +74,7 @@ export default {
 		if (secret) {
 			if (!signature || !expireAt) {
 				return respondWithJson({
-					error: "`sig` and `expireAt` parameters are required (?sig=<>&expireAt=<timestamp>)",
+					error: "`sig` and `expireAt` parameters are required (?sig=[]&expireAt=[timestamp])",
 				}, 400, env.CORS_ORIGIN);
 			}
 
