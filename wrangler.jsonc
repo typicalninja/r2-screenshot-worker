@@ -25,6 +25,9 @@
 		// MAKE SURE TO CHANGE THE SECRET_KEY TO A STRONG KEY
 		// This key is used to verify requests and should be kept secret.
 		"SECRET_KEY": "your_secret_key_here",
+		// must be without trailing slash
+		// This is the prefix for the R2 bucket where screenshots will be stored.
+		"R2_BUCKET_PREFIX": "website-screenshot",
 		// Unless you have a specific user agent string to use, you can leave this as is.
 		// This user agent is used to mimic a real browser request.
 		"BROWSER_USER_AGENT": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
