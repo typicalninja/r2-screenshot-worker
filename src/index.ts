@@ -1,53 +1,53 @@
 import puppeteer from '@cloudflare/puppeteer';
-import { verifySignature } from './tamper-detection';
+import { verifySignature, stringTo256Hash } from './crypto-utils';
 
-// file names are hashed using SHA-256
-async function toFileName(site: string): Promise<string> {
-	const fileName = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(site));
-	return Array.from(new Uint8Array(fileName))
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
-}
+const DEFAULT_HEADERS = {
+	'Content-Type': 'application/json',
+	'Cache-Control': 'public, max-age=3600',
+	'Access-Control-Allow-Origin': '*',
+	'Access-Control-Allow-Methods': 'GET, OPTIONS',
+	'Access-Control-Allow-Headers': 'Content-Type',
+};
 
-const CONTENT_TYPE_JSON = 'application/json';
-const CACHE_CONTROL = 'public, max-age=3600';
-const DEFAULT_CORS = '*';
-
-function respondWithJson(data: Record<string, unknown>, status = 200, corsOrigin: string = DEFAULT_CORS): Response {
+function respondWithJson(data: Record<string, unknown>, status = 200, corsOrigin: string = '*'): Response {
 	return new Response(JSON.stringify(data), {
 		status,
 		headers: {
-			'Content-Type': CONTENT_TYPE_JSON,
-			'Cache-Control': CACHE_CONTROL,
+			...DEFAULT_HEADERS,
 			'Access-Control-Allow-Origin': corsOrigin,
-			'Access-Control-Allow-Methods': 'GET, OPTIONS',
 		},
 	});
 }
 
 export default {
 	async fetch(request, env): Promise<Response> {
-		// validate request method
-		if (request.method !== 'GET') {
-			return respondWithJson(
-				{
-					error: 'Unsupported method.',
+		if (request.method === 'OPTIONS') {
+			// Handle preflight requests
+			return new Response(null, {
+				status: 204,
+				headers: {
+					'Access-Control-Allow-Origin': env.CORS_ORIGIN || '*',
+					'Access-Control-Allow-Methods': 'GET, OPTIONS',
+					'Access-Control-Allow-Headers': 'Content-Type',
 				},
-				405,
-				env.CORS_ORIGIN
-			);
+			});
+		}
+
+		// only GET requests are allowed
+		if (request.method !== 'GET') {
+			return respondWithJson({ error: 'Unsupported method.' }, 405);
 		}
 
 		const { searchParams } = new URL(request.url);
-		// UrlEncoded site URL
 		let rawSiteUrl = searchParams.get('site');
 
 		if (!rawSiteUrl) {
-			return respondWithJson({ error: '`site` parameter is required (?site=[ ])' }, 400);
+			return respondWithJson({ error: 'site parameter is required' }, 400);
 		}
 
-		const fileNameHex = await toFileName(rawSiteUrl);
-		const objectName = `screenshots/${fileNameHex}.webp`;
+		const siteUrlHash = await stringTo256Hash(rawSiteUrl);
+		const r2BucketPrefix = env.R2_BUCKET_PREFIX || 'website-screenshot';
+		const objectName = `${r2BucketPrefix}/${siteUrlHash}.webp`;
 
 		// check if the file already exists in R2
 		const existingFile = await env.R2_STORE_BUCKET.head(objectName);
@@ -90,11 +90,13 @@ export default {
 			);
 		}
 
-		const expireAtTimestamp = parseInt(expireAt, 10);
-		if (isNaN(expireAtTimestamp) || expireAtTimestamp < Date.now()) {
+		const expireAtTimestamp = Number(expireAt);
+		// if expireAt is not provided, is not a valid number or is in the past,
+		// error out with a 400 Bad Request response
+		if (!Number.isSafeInteger(expireAtTimestamp) || expireAtTimestamp <= Date.now()) {
 			return respondWithJson(
 				{
-					error: 'Invalid or expired timestamp in "expireAt" parameter.',
+					error: 'Invalid or expired "expireAt" parameter.',
 				},
 				400,
 				env.CORS_ORIGIN

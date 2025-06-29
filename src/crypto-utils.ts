@@ -23,3 +23,15 @@ export async function verifySignature(
 
 	return await crypto.subtle.verify('HMAC', keyBuffer, decodedSignature, dataBuffer);
 }
+
+/**
+ * Convert a string to a SHA-256 hash string
+ * @param str 
+ * @returns 
+ */
+export async function stringTo256Hash(str: string): Promise<string> {
+	const fileName = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+	return Array.from(new Uint8Array(fileName))
+		.map((b) => b.toString(16).padStart(2, '0'))
+		.join('');
+}
