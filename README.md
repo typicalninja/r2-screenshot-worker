@@ -5,14 +5,19 @@
 A Cloudflare Worker that captures screenshots of webpages and stores them in a Cloudflare R2 bucket for fast, persistent access.
 
 [![Deploy to cloudflare workers](https://deploy.workers.cloudflare.com/button)][cloudflare-deploy-url]
+
 ## Getting Started
-
-
-#### 1. Deploy the Worker
 
 You can deploy this worker using the Cloudflare dashboard or the Wrangler CLI. **The easiest way is to click the button above.**
 
-### Deploy with Wrangler CLI
+#### Deploy with Cloudflare Dashboard
+
+1. Click the "Deploy to Cloudflare Workers" button above.
+2. Create an R2 bucket named `website-screenshot-bucket` (or any name you prefer, but update it in the environment variables).
+3. Make sure you follow the [Configuring Environment Variables](#configuration) section below to set the required environment variables in `wrangler.jsonc`.
+4. Click "Save and Deploy" to deploy the worker.
+
+#### Deploy with Wrangler CLI
 
 1. Clone the repository:
 
@@ -30,14 +35,9 @@ npx wrangler r2 bucket create website-screenshot-bucket
 ```
 > You may choose a different name, but make sure to update it in `wrangler.jsonc`
 
-
 3. Set environment variables
 
-In your `wrangler.jsonc` or through the Cloudflare dashboard, set the following environment variables:
-
-- SECRET_KEY - Secret used to verify requests
-- CORS_ORIGIN - CORS origin to allow; default is *
-- BROWSER_USER_AGENT - User agent string used by the browser
+Make sure you follow the [Configuring Environment Variables](#configuration) section below to set the required environment variables in `wrangler.jsonc`.
 
 
 4. Deploy the worker
@@ -46,6 +46,14 @@ In your `wrangler.jsonc` or through the Cloudflare dashboard, set the following 
 npx wrangler deploy
 ```
 
+### Configuration
+
+You can configure the worker by modifying the `wrangler.jsonc` file. The following environment variables can be changed either in the `wrangler.jsonc` file or through the Cloudflare dashboard:
+
+- `SECRET_KEY` - Secret used to verify requests
+- `CORS_ORIGIN` - CORS origin to allow; default is * (allows all origins)
+- `BROWSER_USER_AGENT` - User agent string used by the browser
+- `R2_BUCKET_PREFIX` - Prefix for R2 object names; default is `website-screenshot/`
 
 ## Example Request
 
@@ -69,7 +77,7 @@ import crypto from 'crypto';
 const SECRET = 'your_secret_key_here';
 const site = 'https://example.com';
 const fullPage = false;
-const expireAt = Date.now() + 60_000; // Expires in 60 seconds
+const expireAt = Date.now() + 60_000;
 
 const params = new URLSearchParams({
   site,
@@ -81,6 +89,7 @@ const dataToSign = params.toString();
 const sig = crypto.createHmac('sha256', SECRET)
   .update(dataToSign)
   .digest('base64')
+  // Convert base64 to URL-safe base64
   .replace(/\+/g, '-')
   .replace(/\//g, '_')
   .replace(/=+$/, '');
@@ -97,7 +106,8 @@ console.log('Signed URL:', signedUrl);
 {
     // the objectName within r2
     // to retrieve the image use GET <r2 url>/<objectName>
-    "objectName:" "screenshots/something*****",
+    // prefix is set in wrangler.jsonc as R2_BUCKET_PREFIX
+    "objectName:" "{prefix}/something*****",
     "created": false, // false = served from cache, true = newly created
 }
 ```
