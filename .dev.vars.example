@@ -1,0 +1,6 @@
+# Secret key is used for verifying signed requests.
+# make sure this key is strong and not shared publicly.
+# It is suggested to use secrets in the Cloudflare dashboard to set this.
+# and only use this file for local development.
+
+SECRET_KEY=MYSECRETKEY

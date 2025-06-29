@@ -22,9 +22,6 @@
 		"binding": "BROWSER"
 	},
 	"vars": {
-		// MAKE SURE TO CHANGE THE SECRET_KEY TO A STRONG KEY
-		// This key is used to verify requests and should be kept secret.
-		"SECRET_KEY": "your_secret_key_here",
 		// must be without trailing slash
 		// This is the prefix for the R2 bucket where screenshots will be stored.
 		"R2_BUCKET_PREFIX": "website-screenshot",
