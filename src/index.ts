@@ -139,9 +139,8 @@ export default {
 		}
 
 		await page.setViewport({
-			width: 1280,
-			height: 800,
-			deviceScaleFactor: 1,
+			width,
+			height,
 		});
 
 		await page.goto(siteUrl.toString());
