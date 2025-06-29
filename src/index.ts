@@ -52,14 +52,7 @@ export default {
 		// check if the file already exists in R2
 		const existingFile = await env.R2_STORE_BUCKET.head(objectName);
 		if (existingFile) {
-			return respondWithJson(
-				{
-					objectName,
-					created: false,
-				},
-				200,
-				env.CORS_ORIGIN
-			);
+			return respondWithJson({ objectName, created: false }, 200, env.CORS_ORIGIN);
 		}
 
 		// get the env values from the environment
@@ -93,7 +86,7 @@ export default {
 		const expireAtTimestamp = Number(expireAt);
 		// if expireAt is not provided, is not a valid number or is in the past,
 		// error out with a 400 Bad Request response
-		if (!Number.isSafeInteger(expireAtTimestamp) || expireAtTimestamp <= Date.now()) {
+		if (!Number.isSafeInteger(expireAtTimestamp) || expireAtTimestamp < Date.now()) {
 			return respondWithJson(
 				{
 					error: 'Invalid or expired "expireAt" parameter.',
@@ -103,18 +96,14 @@ export default {
 			);
 		}
 
+		// the signature is a HMAC of the query string without the `sig` parameter
+		// so we remove it from the searchParams before verifying the signature
 		searchParams.delete('sig');
 
 		const signatureData = searchParams.toString();
 		const isValidSignature = await verifySignature(signatureData, signature, secret);
 		if (!isValidSignature) {
-			return respondWithJson(
-				{
-					error: 'Invalid signature.',
-				},
-				403,
-				env.CORS_ORIGIN
-			);
+			return respondWithJson({ error: 'Invalid signature.' }, 403, env.CORS_ORIGIN);
 		}
 
 		const fullPage = searchParams.get('fullPage') === 'true';
@@ -122,16 +111,10 @@ export default {
 		const height = parseInt(searchParams.get('height') || '800', 10);
 
 		if (isNaN(width) || isNaN(height)) {
-			return respondWithJson(
-				{
-					error: 'Invalid width or height parameters.',
-				},
-				400,
-				env.CORS_ORIGIN
-			);
+			return respondWithJson({ error: 'Invalid width or height parameters.' }, 400, env.CORS_ORIGIN);
 		}
 
-		const siteUrl = new URL(rawSiteUrl);
+		const siteUrl = new URL(decodeURIComponent(rawSiteUrl));
 
 		const browser = await puppeteer.launch(env.BROWSER);
 		const page = await browser.newPage();
@@ -148,7 +131,7 @@ export default {
 		await page.goto(siteUrl.toString());
 
 		const screenshot = await page.screenshot({
-			// best for web resources
+			// webp should offer better compression
 			type: 'webp',
 			fullPage,
 		});
@@ -156,13 +139,6 @@ export default {
 		await browser.close();
 		await env.R2_STORE_BUCKET.put(objectName, screenshot);
 
-		return respondWithJson(
-			{
-				objectName,
-				created: true,
-			},
-			200,
-			env.CORS_ORIGIN
-		);
+		return respondWithJson({ objectName, created: true }, 200, env.CORS_ORIGIN);
 	},
 } satisfies ExportedHandler<Env>;
