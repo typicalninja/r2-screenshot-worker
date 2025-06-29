@@ -4,7 +4,7 @@
 
 A Cloudflare Worker that captures screenshots of webpages and stores them in a Cloudflare R2 bucket for fast, persistent access.
 
-[![Deploy to cloudflare workers](https://deploy.workers.cloudflare.com/button)](cloudflare-deploy-url)
+[![Deploy to cloudflare workers](https://deploy.workers.cloudflare.com/button)][cloudflare-deploy-url]
 ## Getting Started
 
 
@@ -51,7 +51,7 @@ npx wrangler deploy
 
 To capture a screenshot, send a `GET` request to the `/` endpoint with the following query parameters:
 
-- `url`: (Required) URL to capture (must be URL-encoded)
+- `url`: (Required) URL to capture
 - `expireAt`: 	(Required) Expiration timestamp in milliseconds (UNIX epoch)
 - `sig`: 	(Required) HMAC signature for request validation
 - `fullPage`: (Optional) Set to true to capture the entire scrollable page
