@@ -1,10 +1,12 @@
 [cloudflare-deploy-url]: https://deploy.workers.cloudflare.com/?url=https://github.com/typicalninja/r2-screenshot-worker
+[cloudflare-docs-secret-variable]: https://developers.cloudflare.com/workers/configuration/secrets/
+[cloudflare-docs-secret-variable-deployed]: https://developers.cloudflare.com/workers/configuration/secrets/#secrets-on-deployed-workers
 
 # r2-screenshot-worker
 
 A Cloudflare Worker that captures screenshots of webpages and stores them in a Cloudflare R2 bucket for fast, persistent access.
 
-[![Deploy to cloudflare workers](https://deploy.workers.cloudflare.com/button)][cloudflare-deploy-url]
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)][cloudflare-deploy-url]
 
 ## Getting Started
 
@@ -12,10 +14,10 @@ You can deploy this project using the Cloudflare dashboard or the Wrangler CLI.
 
 ### Deploy with Cloudflare Dashboard
 
-1. Click the "Deploy to Cloudflare Workers" button above.
-2. Create an R2 bucket named `website-screenshot-bucket` (or any name you prefer, but update it in the environment variables).
-3. Click "Create and Deploy" to deploy the worker.
-4. Make sure you follow the [Configuration](#configuration) section below to set the required environment variables. (you can do this in the Cloudflare dashboard under "Settings" > "Variables & Secrets")
+1. Click the **Deploy to Cloudflare Workers** button above.
+2. Create an R2 bucket named `website-screenshot-bucket` (or any name you prefer — just make sure to update it in the environment variables).
+3. Click **Create and Deploy** to deploy the worker.
+4. Set the required environment variables in the Cloudflare Dashboard under **Settings > Variables & Secrets**. See the [Configuration](#configuration) section below for details.
 
 ### Deploy with Wrangler CLI
 
@@ -29,16 +31,14 @@ cd r2-screenshot-worker
 
 #### 2. Create the R2 bucket:
 
-
 ```bash
 npx wrangler r2 bucket create website-screenshot-bucket
 ```
-> You may choose a different name, but make sure to update it in `wrangler.jsonc`
+> You can use a different name — just remember to update it in wrangler.jsonc.
 
-#### 3. Set environment variables
+#### 3. Set additional environment variables
 
-Make sure you follow the [Configuration](#configuration) section below to set the required environment variables.
-
+Follow the [Configuration](#configuration) section below to set the required variables.
 
 #### 4. Deploy the worker
 
@@ -46,28 +46,47 @@ Make sure you follow the [Configuration](#configuration) section below to set th
 npx wrangler deploy
 ```
 
+#### 5. Add SECRET_KEY as a [secret variable][cloudflare-docs-secret-variable]
+
+```bash
+npx wrangler secret put SECRET_KEY
+```
+
+> `SECRET_KEY` should be a secure, random string used to sign requests. Use a password manager or generator to create a strong value.
+
+> **you may need to re-deploy for the key to be included in the environment.**
+
 ### Configuration
 
-The following configuration variables can be changed either in the `wrangler.jsonc` file or through the Cloudflare dashboard:
+You can configure variables either in wrangler.jsonc or through the Cloudflare Dashboard.
 
-- `SECRET_KEY` - Secret used to verify requests. You should not set this in the `wrangler.jsonc` file directly. Instead, use the Cloudflare dashboard to set it as a secret variable. **This key is used to sign requests and should be kept secret.** (you can set it after deploying the worker)
-- `CORS_ORIGIN` - CORS origin to allow; default is * (allows all origins)
+#### Secret Variables
+
+- `SECRET_KEY` - Used to sign and validate requests. Keep this key secure.
+
+> You need to deploy the worker before you can set secret variables in the Cloudflare dashboard.
+> [Learn how to add secrets to deployed workers.][cloudflare-docs-secret-variable-deployed].
+
+#### Configuration Variables
+
+- `CORS_ORIGIN` - CORS origin to allow; default is `*` (allows all origins)
 - `BROWSER_USER_AGENT` - User agent string used by the browser
-- `R2_BUCKET_PREFIX` - Prefix for R2 object names; default is `website-screenshot`. do not include a trailing slash.
+- `R2_BUCKET_PREFIX` - Prefix for R2 object names; default is `website-screenshot`. Do not include a trailing slash.
 
 ## Example Request
 
 To capture a screenshot, send a `GET` request to the `/` endpoint with the following query parameters:
 
-- `url`: (Required) URL to capture
-- `fullPage`: (Optional) Set to true to capture the entire scrollable page
-- `width`: (Optional) Width of the viewport in pixels (default is 1280)
-- `height`: (Optional) Height of the viewport in pixels (default is 800)
-- `expireAt`: 	(Required) Expiration timestamp in milliseconds (UNIX epoch)
-- `sig`: 	(Required) HMAC signature for request validation
+- `site`: **(Required)** The URL of the page to capture.
+- `fullPage`: *(Optional)* Set to `true` to capture the full scrollable page.
+- `width`: *(Optional)* Viewport width in pixels (default: `1280`).
+- `height`: *(Optional)* Viewport height in pixels (default: `800`).
+- `expireAt`: **(Required)** Expiration timestamp in milliseconds (UNIX epoch).
+- `sig`: **(Required)** HMAC signature to validate the request.
 
 
-> Note: expireAt only applies during signature validation. If the screenshot already exists in R2, it is returned regardless of expiration.
+> **Note:** \`expireAt\` is only used during signature verification.  
+> If a screenshot already exists in R2, it will be returned even if the timestamp is expired.
 
 ### Signing requests
 
@@ -107,11 +126,11 @@ console.log('Signed URL:', signedUrl);
 
 ```jsonc
 {
-    // the objectName within r2
-    // to retrieve the image use GET <r2 url>/<objectName>
-    // prefix is set in wrangler.jsonc as R2_BUCKET_PREFIX
-    "objectName:" "{prefix}/something*****",
-    "created": false, // false = served from cache, true = newly created
+    // The objectName within R2
+    // To retrieve the image use GET <r2 url>/<objectName>
+    // Prefix is set in wrangler.jsonc as R2_BUCKET_PREFIX
+    "objectName": "{prefix}/something*****",
+    "created": false // false = served from cache, true = newly created
 }
 ```
 
