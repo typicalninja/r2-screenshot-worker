@@ -62,44 +62,71 @@ export default {
 			);
 		}
 
-		const fullPage = searchParams.get('fullPage') === 'true';
+		// get the env values from the environment
+		const secret = env.SECRET_KEY;
+
+		// secret is required for signing requests
+		if (!secret) {
+			return respondWithJson(
+				{
+					error: 'Configuration error, `SECRET_KEY` environment variable unavailable.',
+				},
+				500,
+				env.CORS_ORIGIN
+			);
+		}
+
 		// used for tamper detection
 		const signature = searchParams.get('sig');
 		const expireAt = searchParams.get('expireAt');
 
-		// get the env values from the environment
-		const secret = env.SECRET_KEY;
+		if (!signature || !expireAt) {
+			return respondWithJson(
+				{
+					error: '`sig` and `expireAt` parameters are required (?sig=[]&expireAt=[timestamp])',
+				},
+				400,
+				env.CORS_ORIGIN
+			);
+		}
 
-		// if secret key is provided, all requests must be signed
-		if (secret) {
-			if (!signature || !expireAt) {
-				return respondWithJson({
-					error: "`sig` and `expireAt` parameters are required (?sig=[]&expireAt=[timestamp])",
-				}, 400, env.CORS_ORIGIN);
-			}
-
-			// check if the timestamp is valid
-			const expireAtTimestamp = parseInt(expireAt, 10);
-			if (isNaN(expireAtTimestamp) || expireAtTimestamp < Date.now()) {
-				return respondWithJson({
+		const expireAtTimestamp = parseInt(expireAt, 10);
+		if (isNaN(expireAtTimestamp) || expireAtTimestamp < Date.now()) {
+			return respondWithJson(
+				{
 					error: 'Invalid or expired timestamp in "expireAt" parameter.',
-				}, 400, env.CORS_ORIGIN);
-			}
+				},
+				400,
+				env.CORS_ORIGIN
+			);
+		}
 
-			// verify the signature
-			const searchParamsCopy = new URLSearchParams(searchParams);
-			// remove the signature parameter from the search params
-			searchParamsCopy.delete('sig');
-			// decode the rawSiteUrl to ensure it is in the correct format
-			searchParamsCopy.set('site', decodeURIComponent(rawSiteUrl));
+		searchParams.delete('sig');
 
-			const signatureData = searchParamsCopy.toString();
-			const isValidSignature = await verifySignature(signatureData, signature, secret);
-			if (!isValidSignature) {
-				return respondWithJson({
+		const signatureData = searchParams.toString();
+		const isValidSignature = await verifySignature(signatureData, signature, secret);
+		if (!isValidSignature) {
+			return respondWithJson(
+				{
 					error: 'Invalid signature.',
-				}, 403, env.CORS_ORIGIN);
-			}
+				},
+				403,
+				env.CORS_ORIGIN
+			);
+		}
+
+		const fullPage = searchParams.get('fullPage') === 'true';
+		const width = parseInt(searchParams.get('width') || '1280', 10);
+		const height = parseInt(searchParams.get('height') || '800', 10);
+
+		if (isNaN(width) || isNaN(height)) {
+			return respondWithJson(
+				{
+					error: 'Invalid width or height parameters.',
+				},
+				400,
+				env.CORS_ORIGIN
+			);
 		}
 
 		const siteUrl = new URL(rawSiteUrl);
@@ -111,19 +138,30 @@ export default {
 			await page.setUserAgent(env.BROWSER_USER_AGENT);
 		}
 
+		await page.setViewport({
+			width: 1280,
+			height: 800,
+			deviceScaleFactor: 1,
+		});
+
 		await page.goto(siteUrl.toString());
 
 		const screenshot = await page.screenshot({
 			// best for web resources
 			type: 'webp',
+			fullPage,
 		});
 
 		await browser.close();
 		await env.R2_STORE_BUCKET.put(objectName, screenshot);
 
-		return respondWithJson({
-			objectName,
-			created: true,
-		}, 200, env.CORS_ORIGIN);
+		return respondWithJson(
+			{
+				objectName,
+				created: true,
+			},
+			200,
+			env.CORS_ORIGIN
+		);
 	},
 } satisfies ExportedHandler<Env>;
